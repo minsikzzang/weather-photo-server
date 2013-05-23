@@ -31,6 +31,9 @@ public class PhotoServiceTest extends TestCase {
 	
 	final double lat = 51.550927;
   final double lng = -0.180676;
+	final String dbHost = "localhost";
+	final String dbName = "broken_clouds_development";
+	final int dbPort = 27017;	
 	
   /**
    * Create the test case
@@ -55,9 +58,7 @@ public class PhotoServiceTest extends TestCase {
     PhotoService photo = null;
     int weatherId = 800;
   	try {
-  	  photo = new PhotoService("localhost", 
-    	                         27017, 
-    	                         "broken_clouds_development");
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
       ArrayList<Photo> photos = photo.weatherId(weatherId).get();        
       for (Photo p: photos) {
         assertEquals(p.getWeatherId(), weatherId);
@@ -67,8 +68,7 @@ public class PhotoServiceTest extends TestCase {
   	  if (photo != null) {
   	    photo.close();  
   	  }    	  
-  	}
-  	
+  	}  	
   }
   
   /**
@@ -80,9 +80,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = -0.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService("localhost", 
-    	                         27017, 
-    	                         "broken_clouds_development");
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad).get();
       for (Photo p: photos) {
         assertTrue((p.getLatitude() > lat - rad));
@@ -96,7 +94,6 @@ public class PhotoServiceTest extends TestCase {
   	    photo.close();  
   	  }    	  
   	}
-  	assertTrue(true);
   }
   
   /**
@@ -109,9 +106,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = -0.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService("localhost", 
-    	                         27017, 
-    	                         "broken_clouds_development");
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId).get();
       for (Photo p: photos) {
@@ -121,6 +116,80 @@ public class PhotoServiceTest extends TestCase {
         assertTrue((p.getLongitude() > lng - rad));
         assertTrue((p.getLongitude() < lng + rad));
       }
+  	} catch (UnknownHostException e) {
+  	} finally {
+  	  if (photo != null) {
+  	    photo.close();  
+  	  }    	  
+  	}
+  }
+  
+  /**
+   * Test to retrieve a photo by geo coordinates but no result
+   */
+  public void testGetPhotoByGeoNoResult() {
+    PhotoService photo = null;
+    double lat = 49.549978;
+    double lng = -0.180459;
+    double rad = 0.01;
+  	try {
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
+      ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad).get();
+      assertTrue(photos.size() == 0);
+  	} catch (UnknownHostException e) {
+  	} finally {
+  	  if (photo != null) {
+  	    photo.close();  
+  	  }    	  
+  	}      
+  }
+  
+  /**
+   * Test to retrieve a photo by geo coordinates without result. But put
+   * "grow" option on, and it will be growing until we find a result.
+   */
+  public void testGetPhotoByGeoWithGrow() {
+    PhotoService photo = null;
+    int weatherId = 601;
+    double lat = 40.549978;
+    double lng = 5.180459;
+    double rad = 0.01;
+  	try {
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
+      ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
+                                  .weatherId(weatherId)
+                                    .growable(true)
+                                      .get();
+      assertTrue(photos.size() > 0);
+      for (Photo p: photos) {
+        assertEquals(p.getWeatherId(), weatherId);
+      }
+  	} catch (UnknownHostException e) {
+  	} finally {
+  	  if (photo != null) {
+  	    photo.close();  
+  	  }    	  
+  	}
+  }
+  
+  /**
+   * Test to retrieve a photo by geo coordinates with limit count
+   */
+  public void testGetPhotoByGeoWithLimit() {
+    PhotoService photo = null;
+    int weatherId = 601;
+    double lat = 40.549978;
+    double lng = 5.180459;
+    double rad = 0.1;
+    int limit = 2;
+    
+  	try {
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
+      ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
+                                  .weatherId(weatherId)
+                                    .growable(true).limit(limit)
+                                      .get();
+      assertTrue(photos.size() == 2);
   	} catch (UnknownHostException e) {
   	} finally {
   	  if (photo != null) {

@@ -25,20 +25,23 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.BasicDBList;
 import com.mongodb.DBCursor;
+import com.mongodb.CommandFailureException;
 
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.lang.Math;
 // import com.mongodb.ServerAddress;
-
+// db.photos.ensureIndex({"geo.coordinates":"2d"})
 
 class PhotoService {
   private static String PHOTO_COLLECTION = "photos";
   private static double UNAVAILABLE_LATITUDE = 91;
   private static double UNAVAILABLE_LONGITUDE = 181;
   private static double DEFAULT_RADIUS = 0.001;
+  private static int DEFAULT_LIMIT = 10;
   private int weatherId;  
-  // To directly connect to a single MongoDB server (note that this will not auto-discover the primary even
-  // if it's a member of a replica set:
+  // To directly connect to a single MongoDB server (note that this will not 
+  // auto-discover the primary even if it's a member of a replica set:
   /**
   MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
   // or, to connect to a replica set, with auto-discovery of the primary, supply a seed list of members
@@ -51,8 +54,11 @@ class PhotoService {
   private double lat = UNAVAILABLE_LATITUDE;
   private double lng = UNAVAILABLE_LONGITUDE;
   private double radius = DEFAULT_RADIUS;
+  private boolean growable = false;
+  private int limit = DEFAULT_LIMIT;
   
-  public PhotoService(String host, int port, String dbName) throws UnknownHostException {
+  public PhotoService(String host, int port, String dbName) 
+      throws UnknownHostException {
     this.weatherId = -1;
     this.mongoClient = new MongoClient(host , port);
     this.dbName = dbName;    
@@ -70,42 +76,73 @@ class PhotoService {
     return this;
   }
   
+  public PhotoService growable(boolean growable) {
+    this.growable = growable;
+    return this;
+  }  
+  
+  public PhotoService limit(int limit) {
+    this.limit = limit;
+    return this;
+  }
+  
   public void close() {
     this.mongoClient.close();
+  }
+  
+  private BasicDBObject setGeoCoord(double lat, double lng, double radius) {
+    BasicDBObject query = new BasicDBObject();
+    BasicDBList geo = new BasicDBList();
+    geo.add(lat);
+    geo.add(lng);
+    BasicDBList center = new BasicDBList();   
+    center.add(geo);
+    center.add(radius); 
+    query.append("geo.coordinates", new BasicDBObject("$within", 
+                 new BasicDBObject("$center", center)));
+    return query;
   }
   
   public ArrayList<Photo> get() {
     DB db = mongoClient.getDB(this.dbName);
     DBCollection coll = db.getCollection(PHOTO_COLLECTION);    
-    BasicDBObject query = new BasicDBObject();
+    BasicDBObject query = null;
+    DBCursor cursor = null;
+    ArrayList<Photo> photoList = new ArrayList();  
+
+    while (true) {      
+      // If latitude and longitude were given, append geo search query
+      if (this.lat != UNAVAILABLE_LATITUDE && 
+          this.lng != UNAVAILABLE_LONGITUDE) {
+        query = setGeoCoord(this.lat, this.lng, this.radius);
+      } else {
+        query = new BasicDBObject();
+      }      
+      
+      // It the weather Id has given, append weather search query
+      if (this.weatherId > 0) {
+        query.append("weather", this.weatherId);
+      }
+      
+      try {
+        cursor = coll.find(query).limit(this.limit);
+        if (cursor.count() > 0 || this.growable == false || 
+            this.radius >= UNAVAILABLE_LATITUDE) {
+          break;
+        }  
+      } catch (CommandFailureException e) {
+        cursor = null;
+        break;
+      }
+      
+      this.radius = this.radius * 2; 
+    }  
     
-    // If latitude and longitude were given, append geo search query
-    if (this.lat != UNAVAILABLE_LATITUDE && 
-        this.lng != UNAVAILABLE_LONGITUDE) {
-      BasicDBList geo = new BasicDBList();
-      geo.add(this.lat);
-      geo.add(this.lng);
-      BasicDBList center = new BasicDBList();   
-      center.add(geo);
-      center.add(this.radius); 
-      query.append("geo.coordinates", 
-                   new BasicDBObject("$within", 
-                                     new BasicDBObject("$center", center)));
-    }
-    
-    // It the weather Id has given, append weather search query
-    if (this.weatherId > 0) {
-      query.append("weather", this.weatherId);
-    }
-    
-    ArrayList<Photo> photoList = new ArrayList();    
-    DBCursor cursor = coll.find(query);
     try {
-      while (cursor.hasNext()) {
+      while (cursor != null && cursor.hasNext()) {
         DBObject obj = cursor.next();
         Photo.Builder b = new Photo.Builder((String)obj.get("name"), 
-                                            ((Double)obj.get("weather"))
-                                              .intValue());   
+            ((Number)obj.get("weather")).intValue());   
 
         ArrayList<Double> coord = ((ArrayList<Double>)((DBObject)obj
                                     .get("geo")).get("coordinates"));
@@ -116,7 +153,9 @@ class PhotoService {
         photoList.add(b.build());
       }
     } finally {
-       cursor.close();
+      if (cursor != null) {
+        cursor.close(); 
+      }       
     }
     return photoList;
   }
