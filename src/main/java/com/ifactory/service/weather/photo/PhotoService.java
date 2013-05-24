@@ -109,7 +109,9 @@ class PhotoService {
     BasicDBObject query = null;
     DBCursor cursor = null;
     ArrayList<Photo> photoList = new ArrayList();  
-
+    int weatherClassMin = -1;
+    int weatherClassMax = -1;
+    
     while (true) {      
       // If latitude and longitude were given, append geo search query
       if (this.lat != UNAVAILABLE_LATITUDE && 
@@ -121,14 +123,40 @@ class PhotoService {
       
       // It the weather Id has given, append weather search query
       if (this.weatherId > 0) {
-        query.append("weather", this.weatherId);
+        if (weatherClassMin == -1 && weatherClassMax == -1) {
+          query.append("weather", this.weatherId);
+        } else {          
+          System.out.println("query with weatherClassMin(" + weatherClassMin + 
+            ") and weatherClassMax(" + weatherClassMax + ")");    
+          query.append("weather", new BasicDBObject("$gte", weatherClassMin)
+            .append("$lte", weatherClassMax));  
+          // System.out.println(query.toString());                     
+        }        
       }
       
       try {
         cursor = coll.find(query).limit(this.limit);
         if (cursor.count() > 0 || this.growable == false || 
             this.radius >= UNAVAILABLE_LATITUDE) {
-          break;
+          if (this.radius >= UNAVAILABLE_LATITUDE) {
+            this.radius = 45;
+            if (weatherClassMin == -1 && weatherClassMax == -1) {
+              // In this case, there is no proper photos by the given weather.
+              // Let's find any photos bound for same weather class.
+              weatherClassMin = ((int)this.weatherId / 100) * 100;
+              weatherClassMax = (((int)this.weatherId / 100) + 1) * 100;    
+              System.out.println("weatherClassMin and weatherClassMax exist");          
+              continue;
+            } else if (this.weatherId > 0) {
+              this.weatherId = 0;     
+              System.out.println("weatherid goes to zero");     
+              continue;    
+            } else {
+              break;
+            }
+          } else {
+            break;  
+          }          
         }  
       } catch (CommandFailureException e) {
         cursor = null;

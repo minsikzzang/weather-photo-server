@@ -197,4 +197,58 @@ public class PhotoServiceTest extends TestCase {
   	  }    	  
   	}
   }
+  
+  /**
+   * Test to retrieve a photo by geo coordinates but no result so return 
+   * same class of weather
+   */
+  public void testGetPhotoByGeoWithSameClassWeather() {
+    PhotoService photo = null;
+    int weatherId = 600;
+    double lat = 40.549978;
+    double lng = 5.180459;
+    double rad = 0.1;
+    int limit = 2;
+    System.out.println("testGetPhotoByGeoWithSameClassWeather");
+  	try {
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
+      ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
+                                  .weatherId(weatherId)
+                                    .growable(true).limit(limit)
+                                      .get();
+      assertTrue(photos.size() == 2);
+  	} catch (UnknownHostException e) {
+  	} finally {
+  	  if (photo != null) {
+  	    photo.close();  
+  	  }    	  
+  	}
+  }
+  
+  /**
+   * Test to retrieve a photo by geo coordinates but no result and no
+   * same class weather. It should return any of photos.
+   */
+  public void testGetPhotoByGeoWithNoSameClassWeather() {
+    PhotoService photo = null;
+    int weatherId = 500;
+    double lat = 40.549978;
+    double lng = 5.180459;
+    double rad = 0.1;
+    int limit = 2;
+    System.out.println("testGetPhotoByGeoWithNoSameClassWeather");
+  	try {
+  	  photo = new PhotoService(dbHost, dbPort, dbName);
+      ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
+                                  .weatherId(weatherId)
+                                    .growable(true).limit(limit)
+                                      .get();
+      assertTrue(photos.size() == 2);
+  	} catch (UnknownHostException e) {
+  	} finally {
+  	  if (photo != null) {
+  	    photo.close();  
+  	  }    	  
+  	}
+  }
 }
