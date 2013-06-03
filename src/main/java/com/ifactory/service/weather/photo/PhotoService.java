@@ -56,12 +56,14 @@ class PhotoService {
   private double radius = DEFAULT_RADIUS;
   private boolean growable = false;
   private int limit = DEFAULT_LIMIT;
+  private String origin = "http://api.ifactory-lab.com/assets/";
   
-  public PhotoService(String host, int port, String dbName) 
+  public PhotoService(String host, int port, String dbName, String origin) 
       throws UnknownHostException {
     this.weatherId = -1;
     this.mongoClient = new MongoClient(host , port);
     this.dbName = dbName;    
+    this.origin = origin;
   }
     
   public PhotoService geoCoord(double lat, double lng, double radius) {
@@ -86,8 +88,36 @@ class PhotoService {
     return this;
   }
   
+  public String getOrigin() {
+    return this.origin;
+  }
+  
   public void close() {
     this.mongoClient.close();
+  }
+  
+  public boolean add(Photo photo) {
+    DB db = mongoClient.getDB(this.dbName);
+    DBCollection coll = db.getCollection(PHOTO_COLLECTION);
+    
+    BasicDBList geo = new BasicDBList();
+    geo.add(photo.getLatitude());
+    geo.add(photo.getLongitude());
+    
+    BasicDBObject query = new BasicDBObject("name", photo.getName())
+      .append("day", photo.getDay())
+        .append("weather", photo.getWeatherId())
+          .append("timestamp", photo.getTimestamp())
+            .append("geo", new BasicDBObject("type", "Point")
+              .append("coordinates", geo));
+    
+    try {
+      coll.insert(query);  
+    } catch (MongoException e) {
+      return false;
+    }
+      
+    return true;
   }
   
   private BasicDBObject setGeoCoord(double lat, double lng, double radius) {
@@ -95,7 +125,7 @@ class PhotoService {
     BasicDBList geo = new BasicDBList();
     geo.add(lat);
     geo.add(lng);
-    BasicDBList center = new BasicDBList();   
+    BasicDBList center = new BasicDBList();
     center.add(geo);
     center.add(radius); 
     query.append("geo.coordinates", new BasicDBObject("$within", 
@@ -111,12 +141,13 @@ class PhotoService {
     ArrayList<Photo> photoList = new ArrayList();  
     int weatherClassMin = -1;
     int weatherClassMax = -1;
+    double rad = this.radius;
     
     while (true) {      
       // If latitude and longitude were given, append geo search query
       if (this.lat != UNAVAILABLE_LATITUDE && 
           this.lng != UNAVAILABLE_LONGITUDE) {
-        query = setGeoCoord(this.lat, this.lng, this.radius);
+        query = setGeoCoord(this.lat, this.lng, rad);
       } else {
         query = new BasicDBObject();
       }      
@@ -130,23 +161,26 @@ class PhotoService {
             ") and weatherClassMax(" + weatherClassMax + ")");    
           query.append("weather", new BasicDBObject("$gte", weatherClassMin)
             .append("$lte", weatherClassMax));  
-          // System.out.println(query.toString());                     
+          System.out.println(query.toString());                     
         }        
       }
       
       try {
         cursor = coll.find(query).limit(this.limit);
-        if (cursor.count() > 0 || this.growable == false || 
-            this.radius >= UNAVAILABLE_LATITUDE) {
-          if (this.radius >= UNAVAILABLE_LATITUDE) {
-            this.radius = 45;
+        if (cursor.count() > 0) {
+          System.out.println("photo found(lat: " + this.lat + ", lng: " + 
+            this.lng + ", radius: " + rad + ")");
+          break;
+        } else if (this.growable == false || 
+            rad >= UNAVAILABLE_LATITUDE) {
+          if (rad >= UNAVAILABLE_LATITUDE) {
+            rad = this.radius / 2;
             if (weatherClassMin == -1 && weatherClassMax == -1) {
               // In this case, there is no proper photos by the given weather.
               // Let's find any photos bound for same weather class.
               weatherClassMin = ((int)this.weatherId / 100) * 100;
               weatherClassMax = (((int)this.weatherId / 100) + 1) * 100;    
               System.out.println("weatherClassMin and weatherClassMax exist");          
-              continue;
             } else if (this.weatherId > 0) {
               this.weatherId = 0;     
               System.out.println("weatherid goes to zero");     
@@ -163,7 +197,7 @@ class PhotoService {
         break;
       }
       
-      this.radius = this.radius * 2; 
+      rad = rad * 2; 
     }  
     
     try {
@@ -176,7 +210,8 @@ class PhotoService {
                                     .get("geo")).get("coordinates"));
         b.geoCoord(coord.get(0), coord.get(1))
           .day(((Boolean)obj.get("day")).booleanValue())
-            .timestamp(((Number)obj.get("timestamp")).longValue());
+            .timestamp(((Number)obj.get("timestamp")).longValue())
+              .origin(this.origin);
               
         photoList.add(b.build());
       }

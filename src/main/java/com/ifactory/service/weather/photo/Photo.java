@@ -26,6 +26,7 @@ public class Photo implements Serializable {
 	private double lat;
 	private double lng;
   private long timestamp;
+	private String origin;
 	
 	static final class Builder {
     private String name;
@@ -34,6 +35,7 @@ public class Photo implements Serializable {
   	private double lat;
   	private double lng;
     private long timestamp;
+    private String origin;
 		
 		public Builder(String name, int weatherId) {
 			this.name = name;
@@ -56,6 +58,11 @@ public class Photo implements Serializable {
 			return this;
 		}
 				
+		public Builder origin(String origin) {
+		  this.origin = origin;
+		  return this;
+		}
+		
 		public Photo build() {
 			return new Photo(this);
 		}
@@ -68,6 +75,7 @@ public class Photo implements Serializable {
 		lat = builder.lat;			
 		lng = builder.lng;			
 		timestamp = builder.timestamp;			
+		origin = builder.origin;
 	}	
 	
 	public boolean getDay() {
@@ -92,5 +100,9 @@ public class Photo implements Serializable {
 	
 	public long getTimestamp() {
 		return this.timestamp;
+	}
+	
+	public String origin() {
+	  return this.origin;
 	}
 }

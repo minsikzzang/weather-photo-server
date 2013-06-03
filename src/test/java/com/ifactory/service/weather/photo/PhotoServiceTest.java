@@ -34,7 +34,7 @@ public class PhotoServiceTest extends TestCase {
 	final String dbHost = "localhost";
 	final String dbName = "broken_clouds_development";
 	final int dbPort = 27017;	
-	
+	final String photoHost = "http://api.ifactory-lab.com/";
   /**
    * Create the test case
    *
@@ -58,7 +58,7 @@ public class PhotoServiceTest extends TestCase {
     PhotoService photo = null;
     int weatherId = 800;
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.weatherId(weatherId).get();        
       for (Photo p: photos) {
         assertEquals(p.getWeatherId(), weatherId);
@@ -80,7 +80,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = -0.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad).get();
       for (Photo p: photos) {
         assertTrue((p.getLatitude() > lat - rad));
@@ -106,7 +106,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = -0.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId).get();
       for (Photo p: photos) {
@@ -133,7 +133,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = -0.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad).get();
       assertTrue(photos.size() == 0);
   	} catch (UnknownHostException e) {
@@ -155,7 +155,7 @@ public class PhotoServiceTest extends TestCase {
     double lng = 5.180459;
     double rad = 0.01;
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId)
                                     .growable(true)
@@ -184,7 +184,7 @@ public class PhotoServiceTest extends TestCase {
     int limit = 2;
     
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId)
                                     .growable(true).limit(limit)
@@ -211,7 +211,7 @@ public class PhotoServiceTest extends TestCase {
     int limit = 2;
     System.out.println("testGetPhotoByGeoWithSameClassWeather");
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId)
                                     .growable(true).limit(limit)
@@ -238,12 +238,13 @@ public class PhotoServiceTest extends TestCase {
     int limit = 2;
     System.out.println("testGetPhotoByGeoWithNoSameClassWeather");
   	try {
-  	  photo = new PhotoService(dbHost, dbPort, dbName);
+  	  photo = new PhotoService(dbHost, dbPort, dbName, photoHost);
       ArrayList<Photo> photos = photo.geoCoord(lat, lng, rad)
                                   .weatherId(weatherId)
                                     .growable(true).limit(limit)
                                       .get();
-      assertTrue(photos.size() == 2);
+      // System.out.println(photos.size());                                
+      assertTrue(photos.size() == limit);
   	} catch (UnknownHostException e) {
   	} finally {
   	  if (photo != null) {

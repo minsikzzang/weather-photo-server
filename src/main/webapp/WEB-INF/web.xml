@@ -11,6 +11,12 @@
       com.ifactory.service.weather.photo.PhotoServlet
     </servlet-class>
     <load-on-startup>1</load-on-startup>
+    <multipart-config>
+      <location>/opt/ifactory/photos/repo/</location>
+      <file-size-threshold>2097152</file-size-threshold>      
+      <max-file-size>10485760</max-file-size>
+      <max-request-size>20971520</max-request-size>
+    </multipart-config>
   </servlet>
 
   <servlet-mapping>
